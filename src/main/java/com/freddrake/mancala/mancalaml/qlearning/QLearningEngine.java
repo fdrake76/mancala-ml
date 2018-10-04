@@ -33,7 +33,7 @@ public class QLearningEngine extends AbstractGamingEngine {
 	private final Logger log = LoggerFactory.getLogger(QLearningEngine.class);
 	
 	private final Player player;
-	private final MultiLayerNetwork network;
+	private MultiLayerNetwork network;
 	private double epsilon;
 	private Random random;
 	private final List<ReplayMove> replayMemory;
@@ -187,7 +187,7 @@ public class QLearningEngine extends AbstractGamingEngine {
 		}
 		
 		try {
-			ModelSerializer.restoreMultiLayerNetwork(networkFile);
+			network = ModelSerializer.restoreMultiLayerNetwork(networkFile);
 		} catch (IOException e) {
 			log.warn("Couldn't restore file.  Using blank network");
 		}
