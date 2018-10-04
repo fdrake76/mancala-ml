@@ -41,11 +41,12 @@ public class QLearningEngine extends AbstractGamingEngine {
 	private float winReward;
 	private float loseReward;
 	private float tieReward;
+	private boolean trainable;
 	
 	@Builder
 	private QLearningEngine(Player player, MultiLayerNetwork network, Double epsilon, Random random,
 			Integer hiddenLayerCount, File networkFile, float winReward, float loseReward, 
-			float tieReward) {
+			float tieReward, boolean trainable) {
 		this.player = player;
 		
 		int inputLength = 12;
@@ -55,6 +56,7 @@ public class QLearningEngine extends AbstractGamingEngine {
 		this.winReward = winReward;
 		this.loseReward = loseReward;
 		this.tieReward = tieReward;
+		this.trainable = trainable;
 		
 		if (network == null) {
 	        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
@@ -100,41 +102,46 @@ public class QLearningEngine extends AbstractGamingEngine {
 			throw new MancalaException("Cannot choose move because game is over");
 		}
 		
+		// Get action based on INDArray
+		INDArray inputArray = getInputNDArray(gameBoard);
 		List<Integer> legalMoves = gameBoard.validMoves(player);
+		int chosenMove = -1;
 		if (epsilon > random.nextDouble()) {
 			// Ignore the engine and just choose a random move.
 			log.debug("Going to make a random move");
-			return legalMoves.get(random.nextInt(legalMoves.size()));
-		}
+			chosenMove = legalMoves.get(random.nextInt(legalMoves.size())) - 1;
+		} else {
+			log.debug("Input: {}", inputArray);
+			INDArray outputArray = network.output(inputArray);
+			log.debug("Output: {}", outputArray);
+			for(int i=0; i<outputArray.length(); i++) {
+				if (legalMoves.contains(i+1)) {
+					if (chosenMove == -1) {
+						chosenMove = i;
+					} else {
+						chosenMove = outputArray.getFloat(i) > outputArray.getFloat(chosenMove) 
+								? i : chosenMove;				
+					}				
+				}
+			}			
+		}		
 		
-		// Get action based on INDArray and allowed choice		
-		INDArray inputArray = getInputNDArray(gameBoard);
-		log.debug("Input: {}", inputArray);
-		INDArray outputArray = network.output(inputArray);
-		log.debug("Output: {}", outputArray);
-		int maxIndex = -1;
-		for(int i=0; i<outputArray.length(); i++) {
-			if (legalMoves.contains(i+1)) {
-				if (maxIndex == -1) {
-					maxIndex = i;
-				} else {
-					maxIndex = outputArray.getFloat(i) > outputArray.getFloat(maxIndex) 
-							? i : maxIndex;				
-				}				
-			}
-		}
-		
-		if (maxIndex == -1) {
+		if (chosenMove == -1) {
 			throw new MancalaException("No legal move is possible");
 		}
 		
-		replayMemory.add(new ReplayMove(inputArray, maxIndex));			
+		if (trainable) {
+			replayMemory.add(new ReplayMove(inputArray, chosenMove));						
+		}
 		
-		return maxIndex + 1;
+		return chosenMove + 1;
 	}	
 	
 	@Override
 	public void onAfterGame(GameBoard gameBoard) {
+		if (!trainable) {
+			return;
+		}
 		INDArray inputs = Nd4j.create(replayMemory.size(), gameBoard.pebbleField(player).length);
 		IntStream.range(0, replayMemory.size()).forEach(
 				index -> inputs.putRow(index, replayMemory.get(index).input));
