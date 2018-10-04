@@ -22,11 +22,13 @@ public class Statistician {
 	private HashMap<Player, List<GameBatch>> gameBatches;
 	private HashMap<Player, List<GameBatch>> singleBatch;
 	private Writer outputWriter;
+	private boolean writeHeaderRow;
 	
 	@Builder
-	private Statistician(long gameBatchSize, Writer outputWriter) {
+	private Statistician(long gameBatchSize, Writer outputWriter, Boolean writeHeaderRow) {
 		this.gameBatchSize = gameBatchSize == 0 ? 1 : gameBatchSize;
 		this.outputWriter = outputWriter;
+		this.writeHeaderRow = writeHeaderRow != null ? writeHeaderRow : true;
 		
 		gameBatches = new HashMap<Player, List<GameBatch>>();
 		gameBatches.put(Player.PLAYER_ONE, new ArrayList<GameBatch>());
@@ -71,12 +73,15 @@ public class Statistician {
 		List<GameBatch> p1Batches = gameBatches.get(Player.PLAYER_ONE);
 		List<GameBatch> p2Batches = gameBatches.get(Player.PLAYER_TWO);
 		
-		try {
-			outputWriter.write("P1Wins,P1Ties,P1Losses,P1Score,P2Wins,P2Ties,P2Losses,P2Score");
-			outputWriter.write(System.lineSeparator());
-		} catch (IOException e) {
-			throw new MancalaException(e);
+		if (writeHeaderRow) {
+			try {
+				outputWriter.write("P1Wins,P1Ties,P1Losses,P1Score,P2Wins,P2Ties,P2Losses,P2Score");
+				outputWriter.write(System.lineSeparator());
+			} catch (IOException e) {
+				throw new MancalaException(e);
+			}			
 		}
+		
 		for(int i=0; i<p1Batches.size(); i++) {
 			GameBatch p1B = p1Batches.get(i);
 			GameBatch p2B = p2Batches.get(i);
