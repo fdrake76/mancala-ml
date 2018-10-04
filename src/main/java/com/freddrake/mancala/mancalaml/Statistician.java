@@ -19,16 +19,21 @@ public class Statistician {
 	private final Logger log = LoggerFactory.getLogger(Statistician.class);
 	private long gameBatchSize = 1;
 	
+	private long totalGames;
 	private HashMap<Player, List<GameBatch>> gameBatches;
 	private HashMap<Player, List<GameBatch>> singleBatch;
 	private Writer outputWriter;
 	private boolean writeHeaderRow;
+	private int announceAfterGames;
 	
 	@Builder
-	private Statistician(long gameBatchSize, Writer outputWriter, Boolean writeHeaderRow) {
+	private Statistician(long gameBatchSize, Writer outputWriter, Boolean writeHeaderRow, 
+			int announceAfterGames) {
 		this.gameBatchSize = gameBatchSize == 0 ? 1 : gameBatchSize;
 		this.outputWriter = outputWriter;
 		this.writeHeaderRow = writeHeaderRow != null ? writeHeaderRow : true;
+		this.announceAfterGames = announceAfterGames;
+		this.totalGames = 0;
 		
 		gameBatches = new HashMap<Player, List<GameBatch>>();
 		gameBatches.put(Player.PLAYER_ONE, new ArrayList<GameBatch>());
@@ -43,6 +48,7 @@ public class Statistician {
 	}
 	
 	public void addGameResult(Player winner, int winningScore, Player loser, int losingScore) {
+		totalGames++;
 		if (winner == Player.NOBODY || loser == Player.NOBODY || winningScore == losingScore) {
 			GameBatch tiedBatch = new GameBatch();
 			tiedBatch.ties = 1;
@@ -62,6 +68,10 @@ public class Statistician {
 		}
 		
 		bundleBatches();
+		
+		if (announceAfterGames > 0 && totalGames % announceAfterGames == 0) {
+			log.info("Processed {} games", totalGames);
+		}
 	}
 	
 	public void dumpBatchesToCsv() {
