@@ -8,12 +8,15 @@ import org.springframework.context.annotation.Profile;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.util.Arrays;
 
 import org.springframework.boot.Banner;
 
 import com.freddrake.mancala.mancalaml.GameBoard.Player;
 import com.freddrake.mancala.mancalaml.qlearning.QLearningEngine;
 import com.freddrake.mancala.mancalaml.random.RandomEngine;
+import com.freddrake.mancala.mancalaml.stats.CsvOutputter;
+import com.freddrake.mancala.mancalaml.stats.Statistician;
 
 @SpringBootApplication
 @Profile("!test")
@@ -25,18 +28,31 @@ public class MancalaMlApplication implements CommandLineRunner {
 				BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);) {
 			GameSession session = GameSession.builder()
 					.player1Engine(QLearningEngine.builder()
-							.epsilon(.25)
+							.epsilon(0.25)
 							.player(Player.PLAYER_ONE)
-							.winReward(5)
-							.loseReward(-5)
+							.winReward(10)
+							.loseReward(-10)
 							.tieReward(0)
-							.networkFile(new File("/Users/fdrake/mancala-network"))
+							.networkFile(new File("/Users/fdrake/mancala-network.zip"))
+							.trainable(true)
 							.build())
-					.player2Engine(RandomEngine.builder().player(Player.PLAYER_TWO).build())
-					.trainingGames(10000)
+//					.player2Engine(RandomEngine.builder().player(Player.PLAYER_TWO).build())
+					.player2Engine(QLearningEngine.builder()
+							.epsilon(0d)
+							.player(Player.PLAYER_TWO)
+							.networkFile(new File("/Users/fdrake/mancala-network-2018-10-04.zip"))
+							.trainable(false)
+							.build())
+					.trainingGames(40000)
 					.statistician(Statistician.builder()
 							.gameBatchSize(100)
-							.outputWriter(bufferedWriter)
+							.writeHeaderRow(false)
+							.announceAfterGames(1000)
+							.outputters(Arrays.asList(
+									CsvOutputter.builder()
+										.outputWriter(bufferedWriter)
+										.build()
+									))
 							.build())
 					.build();
 			session.train();			

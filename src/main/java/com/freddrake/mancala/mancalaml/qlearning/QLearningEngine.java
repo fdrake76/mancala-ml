@@ -2,6 +2,8 @@ package com.freddrake.mancala.mancalaml.qlearning;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -28,6 +30,7 @@ import com.freddrake.mancala.mancalaml.GameBoard.Player;
 import com.freddrake.mancala.mancalaml.MancalaException;
 
 import lombok.Builder;
+import lombok.NonNull;
 
 public class QLearningEngine extends AbstractGamingEngine {
 	private final Logger log = LoggerFactory.getLogger(QLearningEngine.class);
@@ -37,45 +40,52 @@ public class QLearningEngine extends AbstractGamingEngine {
 	private double epsilon;
 	private Random random;
 	private final List<ReplayMove> replayMemory;
-	private File networkFile;
 	private float winReward;
 	private float loseReward;
 	private float tieReward;
 	private boolean trainable;
+	private OutputStream persistentOutputStream;
+	private int randomSeed;
 	
 	@Builder
 	private QLearningEngine(Player player, MultiLayerNetwork network, Double epsilon, Random random,
 			Integer hiddenLayerCount, File networkFile, float winReward, float loseReward, 
-			float tieReward, boolean trainable) {
+			float tieReward, boolean trainable, InputStream loadFromStream, 
+			OutputStream persistentOutputStream, Integer randomSeed) {
 		this.player = player;
 		
 		int inputLength = 12;
 		hiddenLayerCount = (hiddenLayerCount == null) ? 150 : hiddenLayerCount;
 		this.epsilon = (epsilon == null) ? .25f : epsilon;
-		this.networkFile = networkFile;
 		this.winReward = winReward;
 		this.loseReward = loseReward;
 		this.tieReward = tieReward;
 		this.trainable = trainable;
+		this.persistentOutputStream = persistentOutputStream;
+		this.randomSeed = (randomSeed == null) ? 123 : randomSeed;
 		
 		if (network == null) {
-	        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
-	          		 .seed(123)
-	   	             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-	   	             .list()
-	   	             .layer(0, new DenseLayer.Builder().nIn(inputLength).nOut(hiddenLayerCount)
-	   	            		 	.weightInit(WeightInit.XAVIER)
-	   	            		 		.activation(Activation.RELU)
-	   		                        .build())
-	   	             .layer(1, new OutputLayer.Builder(LossFunction.MSE)
-	   	                        .weightInit(WeightInit.XAVIER)
-	   	                        .activation(Activation.IDENTITY)
-	   	                        .weightInit(WeightInit.XAVIER)
-	   	                        .nIn(hiddenLayerCount).nOut(6).build())
-	   	             .pretrain(false).backprop(true).build();
-	
-			this.network = new MultiLayerNetwork(conf);
-			this.network.init();
+			if (loadFromStream != null) {
+				this.loadNetwork(loadFromStream);
+			} else {
+		        MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
+		          		 .seed(this.randomSeed)
+		   	             .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+		   	             .list()
+		   	             .layer(0, new DenseLayer.Builder().nIn(inputLength).nOut(hiddenLayerCount)
+		   	            		 	.weightInit(WeightInit.XAVIER)
+		   	            		 		.activation(Activation.RELU)
+		   		                        .build())
+		   	             .layer(1, new OutputLayer.Builder(LossFunction.MSE)
+		   	                        .weightInit(WeightInit.XAVIER)
+		   	                        .activation(Activation.IDENTITY)
+		   	                        .weightInit(WeightInit.XAVIER)
+		   	                        .nIn(hiddenLayerCount).nOut(6).build())
+		   	             .pretrain(false).backprop(true).build();
+		
+				this.network = new MultiLayerNetwork(conf);
+				this.network.init();				
+			}
 		} else {
 			this.network = network;
 		}
@@ -97,7 +107,7 @@ public class QLearningEngine extends AbstractGamingEngine {
 	}
 	
 	@Override
-	public int chooseMove(GameBoard gameBoard) {
+	public int chooseMove(@NonNull GameBoard gameBoard) {
 		if (gameBoard.isGameOver(player)) {
 			throw new MancalaException("Cannot choose move because game is over");
 		}
@@ -138,7 +148,7 @@ public class QLearningEngine extends AbstractGamingEngine {
 	}	
 	
 	@Override
-	public void onAfterGame(GameBoard gameBoard) {
+	public void onAfterGame(@NonNull GameBoard gameBoard) {
 		if (!trainable) {
 			return;
 		}
@@ -169,34 +179,30 @@ public class QLearningEngine extends AbstractGamingEngine {
 	/**
 	 * Return the DL4J inputs for a given board state.
 	 */
-	public INDArray getInputNDArray(GameBoard board) {
+	public INDArray getInputNDArray(@NonNull GameBoard board) {
 		int[] pebbles = board.pebbleField(player);
 		return Nd4j.create(IntStream.of(pebbles).asDoubleStream().toArray());
 	}
 	
 	public void saveNetwork() {
-		if (networkFile == null) {
-			log.warn("No network file defined.  Nothing to save.");
+		if (persistentOutputStream == null) {
+			log.warn("No output stream defined.  Nothing to save.");
 			return;
 		}
 		
 		try {
-			ModelSerializer.writeModel(network, networkFile, true);
+			ModelSerializer.writeModel(network, persistentOutputStream, true);
 		} catch (IOException e) {
 			throw new MancalaException(e);
 		}
 	}
 	
-	public void loadNetwork() {
-		if (networkFile == null) {
-			log.warn("No network file defined.  Nothing to load.");
-			return;
-		}
-		
+	public void loadNetwork(@NonNull InputStream inputStream) {
 		try {
-			network = ModelSerializer.restoreMultiLayerNetwork(networkFile);
+			Nd4j.getRandom().setSeed(this.randomSeed);
+			network = ModelSerializer.restoreMultiLayerNetwork(inputStream);
 		} catch (IOException e) {
-			log.warn("Couldn't restore file.  Using blank network");
+			throw new MancalaException(e);
 		}
 	}
 	

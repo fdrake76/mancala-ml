@@ -5,9 +5,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.junit.Test;
@@ -20,6 +28,9 @@ import org.springframework.test.context.junit4.SpringRunner;
 import com.freddrake.mancala.mancalaml.GameBoard.Player;
 import com.freddrake.mancala.mancalaml.qlearning.QLearningEngine;
 import com.freddrake.mancala.mancalaml.random.RandomEngine;
+import com.freddrake.mancala.mancalaml.stats.ChartOutputter;
+import com.freddrake.mancala.mancalaml.stats.CsvOutputter;
+import com.freddrake.mancala.mancalaml.stats.Statistician;
 
 import static com.freddrake.mancala.mancalaml.GameBoard.Player.PLAYER_ONE;
 import static com.freddrake.mancala.mancalaml.GameBoard.Player.PLAYER_TWO;
@@ -200,8 +211,9 @@ public class MancalaMlApplicationTests {
 				.winReward(10)
 				.loseReward(-10)
 				.tieReward(0)
+				.trainable(true)
+				.epsilon(0.0) // No random moves
 				.build();
-		engine.setEpsilon(0f); // No random moves
 		
 		int[] pebbles = { 
 				0, 0,
@@ -239,8 +251,9 @@ public class MancalaMlApplicationTests {
 				.winReward(10)
 				.loseReward(-10)
 				.tieReward(0)
+				.trainable(true)
+				.epsilon(0.0) // no random moves
 				.build();
-		engine.setEpsilon(0f); // No random moves
 		
 		int[] pebbles = { 
 				0, 0,
@@ -265,16 +278,22 @@ public class MancalaMlApplicationTests {
 		for (int i=0; i<3; i++) {
 			session.playGame(PLAYER_ONE);			
 			board.resetGameBoard(pebbles[0], pebbles[1], Arrays.copyOfRange(pebbles, 2, pebbles.length));
-			double nextMoveScore = network.output(engine.getInputNDArray(board)).getDouble(3);
+			double nextMoveScore = network.output(engine.getInputNDArray(board)).getDouble(5);
 			assertTrue(nextMoveScore > moveScore);
 			moveScore = nextMoveScore;
 		}
 	}
 
 	@Test
-	public void statisticianTest() {
+	public void statisticianCsvWriter() {
 		StringWriter writer = new StringWriter();
-		Statistician stats = Statistician.builder().gameBatchSize(5).outputWriter(writer).build();
+		Statistician stats = Statistician.builder()
+				.gameBatchSize(5)
+				.outputters(Arrays.asList(CsvOutputter.builder()
+						.writeHeaderRow(true)
+						.outputWriter(writer)
+						.build()))
+				.build();
 		stats.addGameResult(PLAYER_ONE, 15, PLAYER_TWO, 5);
 		stats.addGameResult(PLAYER_ONE, 25, PLAYER_TWO, 15);
 		stats.addGameResult(PLAYER_TWO, 17, PLAYER_ONE, 12);
@@ -287,7 +306,7 @@ public class MancalaMlApplicationTests {
 		stats.addGameResult(PLAYER_TWO, 25, PLAYER_ONE, 10);
 		stats.addTieGameResult(15);
 
-		stats.dumpBatchesToCsv();
+		stats.outputResults();
 		
 		StringBuilder expected = new StringBuilder();
 		expected.append("P1Wins,P1Ties,P1Losses,P1Score,P2Wins,P2Ties,P2Losses,P2Score");
@@ -296,7 +315,91 @@ public class MancalaMlApplicationTests {
 		expected.append(System.lineSeparator());
 		expected.append("0.4,0.2,0.4,12.0,0.4,0.2,0.4,14.0");
 		expected.append(System.lineSeparator());
-		assertEquals(expected.toString(), writer.toString());
+		assertEquals(expected.toString(), writer.toString());		
+	}
+
+	@Test
+	public void statisticianImageWriter() {
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		Statistician stats = Statistician.builder()
+				.gameBatchSize(5)
+				.outputters(Arrays.asList(ChartOutputter.builder()
+						.outputStream(outputStream)
+						.batchSize(5)
+						.build()))
+				.build();
+		stats.addGameResult(PLAYER_ONE, 15, PLAYER_TWO, 5);
+		stats.addGameResult(PLAYER_ONE, 25, PLAYER_TWO, 15);
+		stats.addGameResult(PLAYER_TWO, 17, PLAYER_ONE, 12);
+		stats.addGameResult(PLAYER_TWO, 20, PLAYER_ONE, 19);
+		stats.addGameResult(PLAYER_ONE, 18, PLAYER_TWO, 12);
+
+		stats.addGameResult(PLAYER_ONE, 10, PLAYER_TWO, 5);
+		stats.addGameResult(PLAYER_ONE, 15, PLAYER_TWO, 10);
+		stats.addGameResult(PLAYER_TWO, 15, PLAYER_ONE, 10);
+		stats.addGameResult(PLAYER_TWO, 25, PLAYER_ONE, 10);
+		stats.addTieGameResult(15);
+
+		assertEquals(0, outputStream.toByteArray().length);
+		stats.outputResults();
+		assertTrue(outputStream.toByteArray().length > 0);
+	}
+	
+	@Test
+	public void testNetworkPersistence() throws Exception {
+		// We will test this by evaluating an output value in the network, execute a game
+		// that would adjust that output value in a subsequent call, save the network,
+		// recreate it, load it, and evaluate the same output value.  The adjusted value
+		// should be there, not the initial value.
+
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		QLearningEngine engine = QLearningEngine.builder()
+				.player(PLAYER_ONE)
+				.winReward(10)
+				.loseReward(-10)
+				.tieReward(0)
+				.trainable(true)
+				.epsilon(0.0) // no random moves
+				.persistentOutputStream(outputStream)
+				.build();
 		
+		int[] pebbles = { 
+				0, 0,
+				0, 0, 0, 0, 0, 1,
+				0, 0, 0, 0, 1, 0
+		};
+		GameBoard board = buildBoard(pebbles);
+		GameSession session = GameSession.builder().gameBoard(board)
+				.player1Engine(engine)
+				.player2Engine(RandomEngine.builder()
+						.player(PLAYER_TWO)
+						.build())
+				.build();		
+		MultiLayerNetwork network = engine.getNeuralNetwork();
+		double originalMoveScore = network.output(engine.getInputNDArray(board)).getDouble(5);
+		
+		session.playGame(PLAYER_ONE); // Player one will win this game			
+		board.resetGameBoard(pebbles[0], pebbles[1], Arrays.copyOfRange(pebbles, 2, pebbles.length));
+		double nextMoveScore = network.output(engine.getInputNDArray(board)).getDouble(5);
+		System.out.println(originalMoveScore+", "+nextMoveScore);
+		assertTrue(nextMoveScore > originalMoveScore);
+		assertEquals(0, outputStream.toByteArray().length);
+		engine.saveNetwork();
+		assertTrue(outputStream.toByteArray().length > 0);
+		
+		// Recreate the engine, load the network and check the score after loading
+		QLearningEngine loadedEngine = QLearningEngine.builder()
+				.player(PLAYER_ONE)
+				.winReward(10)
+				.loseReward(-10)
+				.tieReward(0)
+				.trainable(true)
+				.epsilon(0.0) // no random moves
+				.loadFromStream(new ByteArrayInputStream(outputStream.toByteArray()))
+				.build();
+		MultiLayerNetwork loadedNetwork = loadedEngine.getNeuralNetwork();
+		
+		double loadedGameScore = loadedNetwork.output(loadedEngine.getInputNDArray(board)).getDouble(5);
+		assertEquals(nextMoveScore, loadedGameScore, 0.0);
 	}
 }

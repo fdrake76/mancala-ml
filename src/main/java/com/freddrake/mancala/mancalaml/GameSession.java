@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.freddrake.mancala.mancalaml.GameBoard.Player;
+import com.freddrake.mancala.mancalaml.stats.Statistician;
 
 import static com.freddrake.mancala.mancalaml.GameBoard.Player.PLAYER_ONE;
 import static com.freddrake.mancala.mancalaml.GameBoard.Player.PLAYER_TWO;
@@ -39,7 +40,7 @@ public class GameSession {
 		log.info("Saving engine networks");
 		player1Engine.saveNetwork();
 		player2Engine.saveNetwork();
-		statistician.dumpBatchesToCsv();
+		statistician.outputResults();
 	}
 	
 	public void playGame() {
