@@ -5,42 +5,42 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.io.StringWriter;
+import java.io.*;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Random;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 
+import com.freddrake.mancala.mancalaml.spring.Application;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
+import org.mapdb.Serializer;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
-import com.freddrake.mancala.mancalaml.GameBoard.Player;
-import com.freddrake.mancala.mancalaml.qlearning.QLearningEngine;
-import com.freddrake.mancala.mancalaml.random.RandomEngine;
+import com.freddrake.mancala.mancalaml.engine.QLearningEngine;
+import com.freddrake.mancala.mancalaml.engine.RandomEngine;
 import com.freddrake.mancala.mancalaml.stats.ChartOutputter;
 import com.freddrake.mancala.mancalaml.stats.CsvOutputter;
 import com.freddrake.mancala.mancalaml.stats.Statistician;
 
-import static com.freddrake.mancala.mancalaml.GameBoard.Player.PLAYER_ONE;
-import static com.freddrake.mancala.mancalaml.GameBoard.Player.PLAYER_TWO;
+import static com.freddrake.mancala.mancalaml.Player.PLAYER_ONE;
+import static com.freddrake.mancala.mancalaml.Player.PLAYER_TWO;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.mock;
 
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")
-@SpringBootTest
-public class MancalaMlApplicationTests {
+@SpringBootTest(classes = Application.class)
+public class ApplicationTests {
 	/**
 	 * Simple, fast way to build a game board for all of the tests.  The first numbers are
 	 * the scores for each player, the rest are the number of pebbles in each pod.
@@ -284,15 +284,77 @@ public class MancalaMlApplicationTests {
 		}
 	}
 
-	@Test
+    @Test
+    @Ignore
+    public void testEmbeddedDatabase() throws Exception {
+        int[] pebbles = {
+                0, 0,
+                0, 0, 0, 0, 0, 1,
+                0, 0, 0, 0, 1, 0
+        };
+
+        // concat of pebbles and the zero-based move that was made
+        StringBuilder sb = new StringBuilder();
+        Arrays.stream(Arrays.copyOfRange(pebbles, 2, 14)).forEach(p -> {
+            sb.append(p).append('|');
+        });
+        String key = sb.append(5).toString();
+
+        // Build byte array to be pushed in to the game engine
+        HashMap<String, Long> winsMap = new HashMap<>();
+        winsMap.put(key, 1L);
+        HashMap<String, Long> gamesMap = new HashMap<>();
+        gamesMap.put(key, 2L);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(winsMap);
+        oos.writeObject(gamesMap);
+        byte[] objectBytes = baos.toByteArray();
+
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(objectBytes);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        QLearningEngine engine = QLearningEngine.builder()
+                .player(PLAYER_ONE)
+                .winReward(10)
+                .loseReward(-10)
+                .tieReward(0)
+                .trainable(true)
+                .epsilon(0.0) // no random moves
+                .loadStatObjectsFromStream(inputStream)
+                .saveStatObjectsToStream(outputStream)
+                .build();
+
+        GameBoard board = buildBoard(pebbles);
+        GameSession session = GameSession.builder().gameBoard(board)
+                .player1Engine(engine)
+                .player2Engine(RandomEngine.builder()
+                        .player(PLAYER_TWO)
+                        .build())
+                .trainingGames(1)
+                .build();
+
+        // one game session, where player one wins.
+        session.train(PLAYER_ONE, false);
+
+        byte[] trainedBytes = outputStream.toByteArray();
+        ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(trainedBytes));
+        winsMap = (HashMap<String, Long>) ois.readObject();
+        gamesMap = (HashMap<String, Long>) ois.readObject();
+
+        assertEquals(2L, (long) winsMap.get(key));
+        assertEquals(3L, (long) gamesMap.get(key));
+    }
+
+    @Test
 	public void statisticianCsvWriter() {
 		StringWriter writer = new StringWriter();
 		Statistician stats = Statistician.builder()
 				.gameBatchSize(5)
-				.outputters(Arrays.asList(CsvOutputter.builder()
-						.writeHeaderRow(true)
-						.outputWriter(writer)
-						.build()))
+				.outputter(CsvOutputter.builder()
+                        .writeHeaderRow(true)
+                        .outputWriter(writer)
+                        .build())
 				.build();
 		stats.addGameResult(PLAYER_ONE, 15, PLAYER_TWO, 5);
 		stats.addGameResult(PLAYER_ONE, 25, PLAYER_TWO, 15);
@@ -323,10 +385,10 @@ public class MancalaMlApplicationTests {
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		Statistician stats = Statistician.builder()
 				.gameBatchSize(5)
-				.outputters(Arrays.asList(ChartOutputter.builder()
-						.outputStream(outputStream)
-						.batchSize(5)
-						.build()))
+                .outputter(ChartOutputter.builder()
+                        .outputStream(outputStream)
+                        .batchSize(5)
+                        .build())
 				.build();
 		stats.addGameResult(PLAYER_ONE, 15, PLAYER_TWO, 5);
 		stats.addGameResult(PLAYER_ONE, 25, PLAYER_TWO, 15);

@@ -8,13 +8,11 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.freddrake.mancala.mancalaml.GameBoard.Player;
-
 /**
  * Represents the state of a game board.  It is not thread safe.
  */
 public class GameBoard {
-	public enum Player { NOBODY, PLAYER_ONE, PLAYER_TWO };
+	;
 	
 	private static final Logger log = LoggerFactory.getLogger(GameBoard.class);
 	private static final int PEBBLE_PODS = 12; // Value should always be even.
@@ -164,7 +162,7 @@ public class GameBoard {
 			b.append("[");
 			for(int i=0; i<p2Pebbles.length; i++) {
 				if (i > 0) b.append(", ");
-				if (i == location) {
+				if (i == location - pebbles.length / 2) {
 					b.append("{"+p2Pebbles[i]+"}");
 				} else {
 					b.append(p2Pebbles[i]);

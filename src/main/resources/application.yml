@@ -1,0 +1,25 @@
+logging:
+  level:
+    com.freddrake: ERROR
+    com.freddrake.mancala.mancalaml.engine: ERROR
+    com.freddrake.mancala.mancalaml.spring: INFO
+    com.freddrake.mancala.mancalaml.stats: INFO
+
+spring:
+  profiles:
+#    active: human
+#    active: train.evolve
+    active: train.initial
+app:
+  networkLocation: ${user.home}/mancala-network.zip
+  trainingEpsilon: 0.25
+  winReward: 10
+  loseReward: -10
+  tieReward: 0
+  trainingGamesPerPass: 50000
+  evolvingTrainingPasses: 50
+  statsDatabaseLocation: ${user.home}/mancala-stats-db.ser
+  statistics:
+    outputFile: ${user.home}/mancala-chart-${timestamp}.jpg
+    gamesPerBatch: 10
+    announceAfterGames: 1000

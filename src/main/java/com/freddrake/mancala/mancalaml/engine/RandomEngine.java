@@ -1,17 +1,19 @@
-package com.freddrake.mancala.mancalaml.random;
+package com.freddrake.mancala.mancalaml.engine;
 
 import java.util.List;
 import java.util.Random;
 
-import com.freddrake.mancala.mancalaml.AbstractGamingEngine;
 import com.freddrake.mancala.mancalaml.GameBoard;
-import com.freddrake.mancala.mancalaml.GameBoard.Player;
+import com.freddrake.mancala.mancalaml.Player;
 import com.freddrake.mancala.mancalaml.MancalaException;
 
 import lombok.Builder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Builder
 public class RandomEngine extends AbstractGamingEngine {
+    private static final Logger log = LoggerFactory.getLogger(RandomEngine.class);
 	@Builder.Default private Random random = new Random();
 	private Player player;
 	
@@ -21,8 +23,10 @@ public class RandomEngine extends AbstractGamingEngine {
 		if (validMoves.isEmpty()) {
 			throw new MancalaException("Cannot play a move");
 		}
-		
-		return validMoves.get(random.nextInt(validMoves.size()));
+
+		int move = validMoves.get(random.nextInt(validMoves.size()));
+        log.info("{} chose move {}", player, move);
+        return move;
 	}
 
 }

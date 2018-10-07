@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.freddrake.mancala.mancalaml.MancalaException;
-import com.freddrake.mancala.mancalaml.GameBoard.Player;
+import com.freddrake.mancala.mancalaml.Player;
 
 import lombok.Builder;
 
