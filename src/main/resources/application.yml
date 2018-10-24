@@ -1,0 +1,22 @@
+logging:
+  level:
+    com.freddrake: ERROR
+    com.freddrake.mancala.mancalaml.engine.reinforcement: DEBUG
+    com.freddrake.mancala.mancalaml.spring: INFO
+    com.freddrake.mancala.mancalaml.stats: INFO
+    org.deeplearning4j.rl4j.learning.sync: ERROR
+
+spring:
+  profiles:
+    active: train.initial
+#    active: play.engine-vs-random
+#    active: train.evolve
+#    active: train.reinforce
+app:
+  networkLocation: ${user.home}/mancala-network.zip
+  trainingEpsilon: 0.25
+  winReward: 10
+  loseReward: -10
+  tieReward: 0
+  trainingGamesPerPass: 50000
+  evolvingTrainingPasses: 5

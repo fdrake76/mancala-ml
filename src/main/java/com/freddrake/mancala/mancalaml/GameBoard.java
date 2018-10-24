@@ -1,26 +1,25 @@
 package com.freddrake.mancala.mancalaml;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.freddrake.mancala.mancalaml.GameBoard.Player;
-
 /**
  * Represents the state of a game board.  It is not thread safe.
  */
 public class GameBoard {
-	public enum Player { NOBODY, PLAYER_ONE, PLAYER_TWO };
+	;
 	
 	private static final Logger log = LoggerFactory.getLogger(GameBoard.class);
 	private static final int PEBBLE_PODS = 12; // Value should always be even.
 	private static final int INITIAL_PEBBLES_PER_POD = 4;
 	private int[] points;
-	private int[] pebbles;	
+	private int[] pebbles;
+	private boolean forceQuit;
 	
 	public GameBoard() {
 		resetGameBoard();
@@ -39,7 +38,8 @@ public class GameBoard {
 	public void resetGameBoard() {
 		points = new int[] {0, 0};
 		pebbles = new int[PEBBLE_PODS];
-		Arrays.fill(pebbles, INITIAL_PEBBLES_PER_POD);		
+		Arrays.fill(pebbles, INITIAL_PEBBLES_PER_POD);
+		forceQuit = false;
 	}
 	
 	public void resetGameBoard(int player1Points, int player2Points, int... pebbles) {
@@ -199,7 +199,7 @@ public class GameBoard {
 	 * @return true if the game is over, false otherwise
 	 */
 	public boolean isGameOver(Player player) {
-		return IntStream.of(playerPebbles(player)).sum() == 0;
+		return forceQuit || IntStream.of(playerPebbles(player)).sum() == 0;
 	}
 	
 	public Player getPointsLeader() {
@@ -226,9 +226,13 @@ public class GameBoard {
 		// Update each pebble pod until you run out of pebbles in your hand.
 		// Then as long as the final pod doesn't contain one, recursively call this method.
 		if (pebbles[location] == 0) {
-			throw new MancalaException("Player cannot take from empty location "+
-					pebbles[location]);
+			// Illegal move.  Demonstrate this by ending the game early, and give the
+            // player a score of -1.
+            points[player == Player.PLAYER_ONE ? 0 : 1] = -1;
+            forceQuit = true;
+            return false;
 		}
+
 		if (player == Player.NOBODY) {
 			throw new MancalaException("Player cannot be nobody.");
 		}
