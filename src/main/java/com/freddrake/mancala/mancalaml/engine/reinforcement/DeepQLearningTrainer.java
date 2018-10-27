@@ -5,6 +5,9 @@ import com.freddrake.mancala.mancalaml.engine.Trainer;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.deeplearning4j.api.storage.StatsStorage;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.optimize.api.TrainingListener;
 import org.deeplearning4j.rl4j.learning.Learning;
 import org.deeplearning4j.rl4j.learning.sync.qlearning.QLearning;
 import org.deeplearning4j.rl4j.learning.sync.qlearning.discrete.QLearningDiscreteDense;
@@ -14,6 +17,7 @@ import org.deeplearning4j.rl4j.network.dqn.IDQN;
 import org.deeplearning4j.rl4j.space.DiscreteSpace;
 import org.deeplearning4j.rl4j.util.DataManager;
 import org.deeplearning4j.ui.api.UIServer;
+import org.deeplearning4j.ui.stats.StatsListener;
 import org.deeplearning4j.util.ModelSerializer;
 
 import java.io.IOException;
@@ -28,20 +32,23 @@ public class DeepQLearningTrainer implements Trainer {
     private InputStream networkInputStream;
     private OutputStream networkOutputStream;
     private UIServer uiServer;
+    private StatsStorage statsStorage;
 
     @Builder
     public DeepQLearningTrainer(@NonNull QLearning.QLConfiguration learningConfiguration,
-                                @NonNull DQNFactoryStdDense.Configuration netConfiguration,
+                                DQNFactoryStdDense.Configuration netConfiguration,
                                 @NonNull GameMDP gameMDP,
                                 InputStream networkInputStream,
                                 OutputStream networkOutputStream,
-                                UIServer uiServer) {
+                                UIServer uiServer,
+                                StatsStorage statsStorage) {
         this.learningConfiguration = learningConfiguration;
         this.netConfiguration = netConfiguration;
         this.gameMDP = gameMDP;
         this.networkInputStream = networkInputStream;
         this.networkOutputStream = networkOutputStream;
         this.uiServer = uiServer;
+        this.statsStorage = statsStorage;
     }
 
     @Override
@@ -63,7 +70,11 @@ public class DeepQLearningTrainer implements Trainer {
         } else {
             // Load from input stream
             try {
-                dqn = new DQN(ModelSerializer.restoreMultiLayerNetwork(networkInputStream));
+                MultiLayerNetwork model = ModelSerializer.restoreMultiLayerNetwork(networkInputStream);
+                if (statsStorage != null) {
+                    model.addListeners(new StatsListener(statsStorage));
+                }
+                dqn = new DQN(model);
 
             } catch (IOException e) {
                 throw new MancalaException(e);
@@ -72,8 +83,6 @@ public class DeepQLearningTrainer implements Trainer {
 
         Learning<GameObservation, Integer, DiscreteSpace, IDQN> dql = new QLearningDiscreteDense(
                 gameMDP, dqn, learningConfiguration, dataManager);
-
-
         dql.train();
         log.info("Done training");
 

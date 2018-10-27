@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 public class AppProperties {
     @Getter @Setter private String networkLocation;
     @Getter @Setter private double trainingEpsilon;
+    @Getter @Setter private int illegalMoveReward;
     @Getter @Setter private float winReward;
     @Getter @Setter private float loseReward;
     @Getter @Setter private float tieReward;

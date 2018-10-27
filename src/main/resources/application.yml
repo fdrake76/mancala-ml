@@ -8,12 +8,11 @@ logging:
 
 spring:
   profiles:
-    active: train.initial
-#    active: play.engine-vs-random
-#    active: train.evolve
-#    active: train.reinforce
+#    active: train.initial
+    active: play.engine-vs-random
 app:
   networkLocation: ${user.home}/mancala-network.zip
+  illegalMoveReward: -100
   trainingEpsilon: 0.25
   winReward: 10
   loseReward: -10

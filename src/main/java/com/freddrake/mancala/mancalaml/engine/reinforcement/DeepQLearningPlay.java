@@ -3,7 +3,6 @@ package com.freddrake.mancala.mancalaml.engine.reinforcement;
 import com.freddrake.mancala.mancalaml.GameBoard;
 import com.freddrake.mancala.mancalaml.MancalaException;
 import com.freddrake.mancala.mancalaml.Player;
-import com.freddrake.mancala.mancalaml.engine.GamingEngine;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -18,13 +17,11 @@ import java.io.InputStream;
 @Slf4j
 public class DeepQLearningPlay {
     private GameMDP gameMDP;
-    private InputStream networkInputStream;
     private DQNPolicy<GameObservation> policy;
 
     @Builder
-    public DeepQLearningPlay(@NonNull GameMDP gameMDP, @NonNull InputStream networkInputStream) {
+    private DeepQLearningPlay(@NonNull GameMDP gameMDP, @NonNull InputStream networkInputStream) {
         this.gameMDP = gameMDP;
-        this.networkInputStream = networkInputStream;
 
         IDQN dqn;
         try {

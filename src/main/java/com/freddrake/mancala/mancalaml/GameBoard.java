@@ -124,7 +124,8 @@ public class GameBoard {
 		log.debug(dumpCurrentState(
 				player == Player.PLAYER_ONE ? location - 1 : location + pebbles.length / 2 - 1, false));
 		if (location < 1 || location > (PEBBLE_PODS / 2)) {
-			throw new MancalaException("Location must be between 1 and "+(PEBBLE_PODS / 2));
+			throw new MancalaException("Illegal location "+location+
+                    ".  Location must be between 1 and "+(PEBBLE_PODS / 2));
 		}
 		
 		// Convert the player's chosen location to the index represented on the board.

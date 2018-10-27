@@ -1,12 +1,5 @@
 package com.freddrake.mancala.mancalaml;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.util.Arrays;
-
 import com.freddrake.mancala.mancalaml.spring.Application;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -14,9 +7,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.util.Arrays;
+
 import static com.freddrake.mancala.mancalaml.Player.PLAYER_ONE;
 import static com.freddrake.mancala.mancalaml.Player.PLAYER_TWO;
-import static org.mockito.Mockito.mock;
+import static org.junit.Assert.*;
 
 @RunWith(SpringRunner.class)
 @ActiveProfiles("test")

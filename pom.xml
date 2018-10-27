@@ -22,6 +22,9 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
+        <dl4j.version>1.0.0-beta2</dl4j.version>
+        <dl4j.backend>nd4j-cuda-9.2-platform</dl4j.backend>
+        <!--<dl4j.backend>nd4j-native-platform</dl4j.backend>-->
 	</properties>
 
 	<dependencies>
@@ -29,48 +32,44 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
-		
-		<dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
     		<groupId>org.deeplearning4j</groupId>
     		<artifactId>deeplearning4j-nn</artifactId>
-    		<version>1.0.0-beta2</version>
+    		<version>${dl4j.version}</version>
 		</dependency>
-		<dependency>
-		    <groupId>org.nd4j</groupId>
-		    <artifactId>nd4j-native-platform</artifactId>
-		    <version>1.0.0-beta2</version>
-		</dependency>
+        <dependency>
+            <groupId>org.nd4j</groupId>
+            <artifactId>${dl4j.backend}</artifactId>
+            <version>${dl4j.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>org.deeplearning4j</groupId>
 			<artifactId>rl4j-core</artifactId>
-			<version>1.0.0-beta2</version>
+			<version>${dl4j.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-devtools</artifactId>
-			<optional>true</optional>
-		</dependency>
-		<dependency>
+        <dependency>
+            <groupId>org.deeplearning4j</groupId>
+            <artifactId>deeplearning4j-play_2.11</artifactId>
+            <version>${dl4j.version}</version>
+        </dependency>
+
+        <dependency>
 		    <groupId>org.projectlombok</groupId>
 	    	<artifactId>lombok</artifactId>
     		<optional>true</optional>
 		</dependency>
-		<dependency>
-		    <groupId>org.jfree</groupId>
-		    <artifactId>jfreechart</artifactId>
-		    <version>1.5.0</version>
-		</dependency>
 
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.deeplearning4j</groupId>
-			<artifactId>deeplearning4j-play_2.11</artifactId>
-			<version>1.0.0-beta2</version>
-		</dependency>
+        <!-- Required to operate DL4J web interface -->
 		<dependency>
 			<groupId>javax.el</groupId>
 			<artifactId>javax.el-api</artifactId>
@@ -81,11 +80,14 @@
 			<artifactId>javax.el</artifactId>
 			<version>2.2.4</version>
 		</dependency>
+
+        <!-- Required for unit testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
-	</dependencies>
+    </dependencies>
 
 	<build>
 		<plugins>

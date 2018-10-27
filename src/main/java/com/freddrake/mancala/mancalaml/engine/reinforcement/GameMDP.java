@@ -3,17 +3,15 @@ package com.freddrake.mancala.mancalaml.engine.reinforcement;
 import com.freddrake.mancala.mancalaml.GameBoard;
 import com.freddrake.mancala.mancalaml.Player;
 import com.freddrake.mancala.mancalaml.engine.GamingEngine;
+import com.freddrake.mancala.mancalaml.spring.AppProperties;
 import lombok.Builder;
 import lombok.NonNull;
-import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.deeplearning4j.gym.StepReply;
 import org.deeplearning4j.rl4j.mdp.MDP;
 import org.deeplearning4j.rl4j.space.ArrayObservationSpace;
 import org.deeplearning4j.rl4j.space.DiscreteSpace;
 import org.deeplearning4j.rl4j.space.ObservationSpace;
-import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.factory.Nd4j;
 
 import java.util.Optional;
 
@@ -25,16 +23,19 @@ public class GameMDP implements MDP<GameObservation, Integer, DiscreteSpace> {
     private final ObservationSpace<GameObservation> observationSpace;
     private final GamingEngine oppositionEngine;
     private final DiscreteSpace discreteSpace;
+    private final int illegalMoveReward;
 
     @Builder
     private GameMDP(GameBoard gameBoard, @NonNull Player player, @NonNull GamingEngine oppositionEngine,
-                    @NonNull DiscreteSpace discreteSpace) {
+                    @NonNull DiscreteSpace discreteSpace, @NonNull ObservationSpace<GameObservation> observationSpace,
+                    @NonNull Integer illegalMoveReward) {
         this.gameBoard = Optional.ofNullable(gameBoard).orElse(new GameBoard());
         this.player = player;
         this.oppositionEngine = oppositionEngine;
         this.discreteSpace = discreteSpace;
         observation = new GameObservation(this.gameBoard, player);
-        observationSpace = new ArrayObservationSpace<>(new int[]{this.gameBoard.pebbleField(player).length});
+        this.observationSpace = observationSpace;
+        this.illegalMoveReward = illegalMoveReward;
     }
 
     public GameBoard getGameBoard() {
@@ -72,7 +73,7 @@ public class GameMDP implements MDP<GameObservation, Integer, DiscreteSpace> {
         if (nextPlayerScore == -1) {
             // We lost due to an illegal move.
             // TODO consider lowering this reward or make it parameterized
-            reward = -1;
+            reward = illegalMoveReward;
         } else {
             reward = nextPlayerScore - playerScore;
         }
@@ -110,21 +111,4 @@ public class GameMDP implements MDP<GameObservation, Integer, DiscreteSpace> {
                 .player(player)
                 .build();
     }
-
-//    @Value
-//    public class GameObservationSpace implements ObservationSpace {
-//        private String name;
-//        private int[] shape;
-//        private INDArray low;
-//        private INDArray high;
-//
-//        public GameObservationSpace() {
-//            name = "Mancala";
-//            shape = new int[]{12};
-//            low = Nd4j.create(shape);
-//            low.putScalar(0, 0);
-//            high = Nd4j.create(shape);
-//            high.putScalar(0, 48);
-//        }
-//    }
 }
